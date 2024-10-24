@@ -48,6 +48,8 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
 		}
 	}
 
+    fmt.Println(length)
+
 	return annouceUrl, length, nil
 }
 
