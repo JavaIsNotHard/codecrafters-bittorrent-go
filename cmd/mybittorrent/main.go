@@ -55,7 +55,7 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
 func main() {
 	command := os.Args[1]
 
-	if command == "info" {
+	if command == "decode" {
 		bencodedValue := os.Args[2]
 
         decoded, err := decodeBencode(bencodedValue)
@@ -66,13 +66,14 @@ func main() {
  
 		jsonOutput, _ := json.Marshal(decoded)
         fmt.Println(string(jsonOutput))
-	} else if command == "decode" {
+	} else if command == "info" {
 		input, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			log.Print("Couldn't read from stdin")
 			os.Exit(1)
 		}
 
+        fmt.Println(string(input))
 		annonceUrl, length, err := extractTrackerURL(string(input))
 		if err != nil {
 			fmt.Println(err)
