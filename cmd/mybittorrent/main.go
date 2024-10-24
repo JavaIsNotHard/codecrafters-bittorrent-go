@@ -2,25 +2,38 @@ package main
 
 import (
 	"encoding/json"
+
+	//"crypto/sha1"
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
-	bencode "github.com/jackpal/bencode-go" // Available if you need it!
+	// bencode "github.com/jackpal/bencode-go" // Available if you need it!
+    bencode "github.com/anacrolix/torrent/bencode"
 )
 
 var _ = json.Marshal
 
 func decodeBencode(bencodedString string) (interface{}, error) {
-	reader := strings.NewReader(bencodedString)
+    var result interface{}
 
-	result, err := bencode.Decode(reader)
+    err := bencode.Unmarshal([]byte(bencodedString), &result)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't decode the bencode string")
+		return nil, err
 	}
 
 	return result, nil
+}
+
+func calculateInfoHash(infoMap interface{}) (string, error) {
+    // newInfoMap := infoMap.(map[string]interface{})
+    // jsonOutput, _ := json.Marshal(newInfoMap)
+
+    bencode := bencode.MustMarshal(infoMap)
+
+    fmt.Println("The bencode value is: ", bencode)
+
+    return "", nil
 }
 
 func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) {
@@ -28,11 +41,14 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
 	var length int
 
     result, err := decodeBencode(bencodedString)
+    if err != nil {
+        return nil, nil, err
+    }
 
-	jsonOutput, _ := json.Marshal(result) // no result here i.e null
+	jsonOutput, _ := json.Marshal(result) // jsonOutput is a []byte
 	var data map[string]interface{}
 
-	err = json.Unmarshal([]byte(jsonOutput), &data)
+	err = json.Unmarshal(jsonOutput, &data)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Couldn't unmarshal the JSON data")
 	}
@@ -47,10 +63,16 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
 		}
 	}
 
-    fmt.Println(length)
+    if info, ok := data["info"]; ok {
+        _, err := calculateInfoHash(info)
+        if err != nil {
+            return nil, nil, err
+        }
+    }
 
 	return annouceUrl, length, nil
 }
+
 
 func main() {
 	command := os.Args[1]
@@ -76,7 +98,7 @@ func main() {
         }
         
 		if err != nil {
-			log.Print("Couldn't read from stdin")
+			log.Print(err)
 			os.Exit(1)
 		}
 
