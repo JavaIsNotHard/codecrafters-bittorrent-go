@@ -31,6 +31,7 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
     result, err := decodeBencode(bencodedString)
 
 	jsonOutput, _ := json.Marshal(result)
+    fmt.Println(string(jsonOutput))
 	var data map[string]interface{}
 
 	err = json.Unmarshal([]byte(jsonOutput), &data)
