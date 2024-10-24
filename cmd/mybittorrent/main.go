@@ -4,35 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
-	"unicode"
-	// bencode "github.com/jackpal/bencode-go" // Available if you need it!
+	"strings"
+
+	bencode "github.com/jackpal/bencode-go" // Available if you need it!
 )
 
 var _ = json.Marshal
 
 func decodeBencode(bencodedString string) (interface{}, error) {
-	if unicode.IsDigit(rune(bencodedString[0])) {
-		var firstColonIndex int
+    reader := strings.NewReader(bencodedString)
 
-		for i := 0; i < len(bencodedString); i++ {
-			if bencodedString[i] == ':' {
-				firstColonIndex = i
-				break
-			}
-		}
+    result, err := bencode.Decode(reader)
+    if err != nil {
+        return nil, fmt.Errorf("Couldn't decode the bencode string")
+    }
 
-		lengthStr := bencodedString[:firstColonIndex]
-
-		length, err := strconv.Atoi(lengthStr)
-		if err != nil {
-			return "", err
-		}
-
-		return bencodedString[firstColonIndex+1 : firstColonIndex+1+length], nil
-	} else {
-		return "", fmt.Errorf("Only strings are supported at the moment")
-	}
+    return result, nil
 }
 
 func main() {
@@ -40,13 +27,13 @@ func main() {
 
 	if command == "decode" {
 		bencodedValue := os.Args[2]
-		
-		decoded, err := decodeBencode(bencodedValue)
+
+		decoded,  err := decodeBencode(bencodedValue)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		
+
 		jsonOutput, _ := json.Marshal(decoded)
 		fmt.Println(string(jsonOutput))
 	} else {
