@@ -28,12 +28,7 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
 	var annouceUrl string
 	var length float64
 
-	reader := strings.NewReader(bencodedString)
-
-	result, err := bencode.Decode(reader)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Couldn't decode the bencode string 2")
-	}
+    result, err := decodeBencode(bencodedString)
 
 	jsonOutput, _ := json.Marshal(result)
 	var data map[string]interface{}
