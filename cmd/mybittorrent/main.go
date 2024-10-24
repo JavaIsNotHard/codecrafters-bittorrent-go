@@ -25,7 +25,7 @@ func decodeBencode(bencodedString string) (interface{}, error) {
 
 func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) {
 	var annouceUrl string
-	var length float64
+	var length int
 
     result, err := decodeBencode(bencodedString)
 
@@ -42,7 +42,7 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
 	if meta, ok := data["info"].(map[string]interface{}); ok {
 		for key, value := range meta {
 			if key == "length" {
-				length = value.(float64)
+				length = int(value.(float64))
 			}
 		}
 	}
