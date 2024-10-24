@@ -18,7 +18,7 @@ func decodeBencode(bencodedString string) (interface{}, error) {
 
 	result, err := bencode.Decode(reader)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't decode the bencode string")
+		return nil, fmt.Errorf("Couldn't decode the bencode string 1")
 	}
 
 	return result, nil
@@ -32,7 +32,7 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
 
 	result, err := bencode.Decode(reader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Couldn't decode the bencode string")
+		return nil, nil, fmt.Errorf("Couldn't decode the bencode string 2")
 	}
 
 	jsonOutput, _ := json.Marshal(result)
@@ -40,7 +40,7 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
 
 	err = json.Unmarshal([]byte(jsonOutput), &data)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Couldn't decode the bencode string")
+		return nil, nil, fmt.Errorf("Couldn't decode the bencode string 3")
 	}
 
 	if meta, ok := data["info"].(map[string]interface{}); ok {
