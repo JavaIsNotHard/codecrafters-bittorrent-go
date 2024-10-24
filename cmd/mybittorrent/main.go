@@ -30,7 +30,6 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
     result, err := decodeBencode(bencodedString)
 
 	jsonOutput, _ := json.Marshal(result) // no result here i.e null
-    fmt.Println(string(jsonOutput))
 	var data map[string]interface{}
 
 	err = json.Unmarshal([]byte(jsonOutput), &data)
@@ -76,8 +75,6 @@ func main() {
             os.Exit(1)
         }
         
-        fmt.Println(string(metaInfo))
-
 		if err != nil {
 			log.Print("Couldn't read from stdin")
 			os.Exit(1)
