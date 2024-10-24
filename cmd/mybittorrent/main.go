@@ -67,14 +67,22 @@ func main() {
 		jsonOutput, _ := json.Marshal(decoded)
         fmt.Println(string(jsonOutput))
 	} else if command == "info" {
-		input, err := io.ReadAll(os.Stdin)
+        fileName := os.Args[2]
+
+        metaInfo, err := os.ReadFile(fileName)
+        if err != nil {
+            log.Fatal("Couldn't open file", fileName)
+            os.Exit(1)
+        }
+        
+        fmt.Println(string(metaInfo))
+
 		if err != nil {
 			log.Print("Couldn't read from stdin")
 			os.Exit(1)
 		}
 
-        fmt.Println(string(input))
-		annonceUrl, length, err := extractTrackerURL(string(input))
+		annonceUrl, length, err := extractTrackerURL(string(metaInfo))
 		if err != nil {
 			fmt.Println(err)
 			return
