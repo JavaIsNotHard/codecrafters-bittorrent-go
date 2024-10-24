@@ -18,7 +18,7 @@ func decodeBencode(bencodedString string) (interface{}, error) {
 
 	result, err := bencode.Decode(reader)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't decode the bencode string 1")
+		return nil, fmt.Errorf("Couldn't decode the bencode string")
 	}
 
 	return result, nil
@@ -35,8 +35,10 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
 
 	err = json.Unmarshal([]byte(jsonOutput), &data)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Couldn't decode the bencode string 3")
+		return nil, nil, fmt.Errorf("Couldn't unmarshal the JSON data")
 	}
+
+	annouceUrl = data["announce"].(string)
 
 	if meta, ok := data["info"].(map[string]interface{}); ok {
 		for key, value := range meta {
@@ -45,8 +47,6 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
 			}
 		}
 	}
-
-	annouceUrl = data["announce"].(string)
 
 	return annouceUrl, length, nil
 }
