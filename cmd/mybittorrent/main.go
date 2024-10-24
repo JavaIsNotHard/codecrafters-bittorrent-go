@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 
@@ -59,13 +60,22 @@ func main() {
 	command := os.Args[1]
 
 	if command == "decode" {
+		bencodedValue := os.Args[2]
+
+        decoded, err := decodeBencode(bencodedValue)
+        if err != nil {
+            log.Print("Couldn't decode the string")
+            os.Exit(1)
+        }
+ 
+		jsonOutput, _ := json.Marshal(decoded)
+        fmt.Println(string(jsonOutput))
+	} else if command == "info" {
 		input, err := io.ReadAll(os.Stdin)
 		if err != nil {
-			fmt.Errorf("Couldn't read from stdin")
+			log.Print("Couldn't read from stdin")
 			os.Exit(1)
 		}
-
-		// bencodedValue := os.Args[2]
 
 		annonceUrl, length, err := extractTrackerURL(string(input))
 		if err != nil {
@@ -73,7 +83,6 @@ func main() {
 			return
 		}
 
-		// jsonOutput, _ := json.Marshal(annonceUrl)
 		fmt.Println("Tracker URL:", annonceUrl)
 		fmt.Println("Length:", length)
 	} else {
