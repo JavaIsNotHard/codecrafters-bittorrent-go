@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +15,8 @@ import (
 
 	bencode "github.com/jackpal/bencode-go"
 )
+
+const Port uint16 = 6881
 
 var _ = json.Marshal
 
@@ -142,6 +145,42 @@ func main() {
 		fmt.Println("Info Hash:", hex.EncodeToString(torrent.InfoHash[:]))
 		fmt.Println("Piece Length:", torrent.PieceLength)
 		torrent.printHashList()
+
+	} else if command == "peers" {
+		fileName := os.Args[2]
+
+		torrentContent, err := os.ReadFile(fileName)
+		if err != nil {
+			log.Fatal("Couldn't open file", fileName)
+			os.Exit(1)
+		}
+
+		decodedMetaInfo, err := decodeBencode(string(torrentContent))
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		torrent, err := decodedMetaInfo.toTorrent()
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		var peerId [20]byte
+
+		_, err = rand.Read(peerId[:])
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		peers, err := torrent.requestPeer(peerId, Port)
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+		fmt.Println(peers)
 
 	} else {
 		fmt.Println("Unknown command: " + command)
