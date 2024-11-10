@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
@@ -16,6 +17,15 @@ import (
 
 var _ = json.Marshal
 
+type TorrentFile struct {
+	Announce     string
+	InfoHash     [20]byte
+	PiecesHashes [][20]byte
+	PieceLength  int
+	Length       int
+	Name         string
+}
+
 type bencodeInfo struct {
 	Pieces      string `bencode:"pieces"`
 	PieceLength int    `bencode:"piece length"`
@@ -28,16 +38,17 @@ type bencodeTorrent struct {
 	Info     bencodeInfo `bencode:"info"`
 }
 
-func generateInfoHash(info *bencodeInfo) (interface{}, error) {
-	jsonBencodedData, err := json.Marshal(info)
+func (i *bencodeInfo) generateInfoHash() ([20]byte, error) {
+	var buf bytes.Buffer
+	err := bencode.Marshal(&buf, *i)
 
 	if err != nil {
-		return nil, err
+		return [20]byte{}, nil
 	}
 
-	hash := sha1.New()
-	hash.Write([]byte(jsonBencodedData))
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	hash := sha1.Sum(buf.Bytes())
+
+	return hash, nil
 }
 
 func decodeBencode(bencodedString string) (*bencodeTorrent, error) {
@@ -52,9 +63,9 @@ func decodeBencode(bencodedString string) (*bencodeTorrent, error) {
 	return &bto, nil
 }
 
-func extractPieces(info bencodeInfo) ([][20]byte, error) {
+func (i *bencodeInfo) extractPieces() ([][20]byte, error) {
 	hashLen := 20
-	buf := []byte(info.Pieces)
+	buf := []byte(i.Pieces)
 	numHashes := len(buf) / hashLen
 	hashes := make([][20]byte, numHashes)
 	for i := 0; i < numHashes; i++ {
@@ -63,14 +74,32 @@ func extractPieces(info bencodeInfo) ([][20]byte, error) {
 	return hashes, nil
 }
 
-func extractTrackerURL(bencodedString string) (interface{}, *bencodeInfo, error) {
-	result, err := decodeBencode(bencodedString)
+func (bt *bencodeTorrent) toTorrent() (TorrentFile, error) {
+	infoHash, err := bt.Info.generateInfoHash()
 
 	if err != nil {
-		return nil, nil, err
+		return TorrentFile{}, nil
 	}
 
-	return result.Announce, &result.Info, nil
+	piecesHashes, err := bt.Info.extractPieces()
+	if err != nil {
+		return TorrentFile{}, nil
+	}
+
+	return TorrentFile{
+		Announce:     bt.Announce,
+		InfoHash:     infoHash,
+		PiecesHashes: piecesHashes,
+		PieceLength:  bt.Info.PieceLength,
+		Length:       bt.Info.Length,
+		Name:         bt.Info.Name,
+	}, nil
+}
+
+func (torrent *TorrentFile) printHashList() {
+	for i := 0; i < len(torrent.PiecesHashes); i++ {
+		fmt.Println(hex.EncodeToString(torrent.PiecesHashes[i][:]))
+	}
 }
 
 func main() {
@@ -90,47 +119,29 @@ func main() {
 	} else if command == "info" {
 		fileName := os.Args[2]
 
-		metaInfo, err := os.ReadFile(fileName)
+		torrentContent, err := os.ReadFile(fileName)
 		if err != nil {
 			log.Fatal("Couldn't open file", fileName)
 			os.Exit(1)
 		}
 
-		annonceUrl, info, err := extractTrackerURL(string(metaInfo))
+		decodedMetaInfo, err := decodeBencode(string(torrentContent))
 		if err != nil {
 			log.Print(err)
 			os.Exit(1)
 		}
 
-		// infoHash, err := generateInfoHash(info)
-		// if err != nil {
-		// 	log.Print(err)
-		// 	os.Exit(1)
-		// }
-
-		// pieces, err := extractPieces(*info)
-		// if err != nil {
-		// 	log.Print(err)
-		// 	os.Exit(1)
-		// }
-
-		// fmt.Println(pieces)
-
-		fmt.Println("Tracker URL:", annonceUrl)
-		fmt.Println("Length:", info.Length)
-		//fmt.Println("Info Hash:", infoHash)
-		//fmt.Println("Pieces Length:", info.PieceLength)
-		//fmt.Println()
-
-		piecesHash, err := extractPieces(*info)
+		torrent, err := decodedMetaInfo.toTorrent()
 		if err != nil {
 			log.Print(err)
 			os.Exit(1)
 		}
 
-		for i := 0; i < len(piecesHash); i++ {
-			fmt.Printf("%s\n", hex.EncodeToString(piecesHash[i][:]))
-		}
+		fmt.Println("Tracker URL:", torrent.Announce)
+		fmt.Println("Length", torrent.Length)
+		fmt.Println("Info Hash:", hex.EncodeToString(torrent.InfoHash[:]))
+		fmt.Println("Piece Length:", torrent.PieceLength)
+		torrent.printHashList()
 
 	} else {
 		fmt.Println("Unknown command: " + command)
