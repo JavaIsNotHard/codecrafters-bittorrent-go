@@ -29,14 +29,14 @@ type bencodeTorrent struct {
 }
 
 func generateInfoHash(info *bencodeInfo) (interface{}, error) {
-	data, err := json.Marshal(info)
+	jsonBencodedData, err := json.Marshal(info)
 
 	if err != nil {
 		return nil, err
 	}
 
 	hash := sha1.New()
-	hash.Write([]byte(data))
+	hash.Write([]byte(jsonBencodedData))
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
@@ -50,6 +50,24 @@ func decodeBencode(bencodedString string) (*bencodeTorrent, error) {
 	}
 
 	return &bto, nil
+}
+
+func extractPieces(info bencodeInfo) ([][20]byte, error) {
+	hashlen := 20
+	buf := []byte(info.Pieces)
+	if len(buf)%hashlen != 0 {
+		err := fmt.Errorf("received malformed pieces of length: %d", len(buf))
+		return nil, err
+	}
+
+	numhashes := len(buf)
+	hashes := make([][20]byte, numhashes)
+
+	for i := 0; i < numhashes; i++ {
+		copy(hashes[i][:], buf[i*hashlen:(i+1)*hashlen])
+	}
+
+	return hashes, nil
 }
 
 func extractTrackerURL(bencodedString string) (interface{}, *bencodeInfo, error) {
@@ -91,15 +109,25 @@ func main() {
 			os.Exit(1)
 		}
 
-		infoHash, err := generateInfoHash(info)
-		if err != nil {
-			log.Print(err)
-			os.Exit(1)
-		}
+		// infoHash, err := generateInfoHash(info)
+		// if err != nil {
+		// 	log.Print(err)
+		// 	os.Exit(1)
+		// }
+
+		// pieces, err := extractPieces(*info)
+		// if err != nil {
+		// 	log.Print(err)
+		// 	os.Exit(1)
+		// }
+
+		// fmt.Println(pieces)
 
 		fmt.Println("Tracker URL:", annonceUrl)
 		fmt.Println("Length:", info.Length)
-		fmt.Println("Info Hash:", infoHash)
+		//fmt.Println("Info Hash:", infoHash)
+		//fmt.Println("Pieces Length:", info.PieceLength)
+		//fmt.Println()
 	} else {
 		fmt.Println("Unknown command: " + command)
 		os.Exit(1)
