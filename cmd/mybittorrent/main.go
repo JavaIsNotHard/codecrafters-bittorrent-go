@@ -1,54 +1,64 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 
 	//"crypto/sha1"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
-	// bencode "github.com/jackpal/bencode-go" // Available if you need it!
-    bencode "github.com/anacrolix/torrent/bencode"
+	bencode "github.com/jackpal/bencode-go" // Available if you need it!
 )
 
 var _ = json.Marshal
 
 func decodeBencode(bencodedString string) (interface{}, error) {
-    var result interface{}
+	reader := strings.NewReader(bencodedString)
 
-    err := bencode.Unmarshal([]byte(bencodedString), &result)
+	result, err := bencode.Decode(reader)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Couldn't decode the bencode string")
 	}
 
 	return result, nil
 }
 
 func calculateInfoHash(infoMap interface{}) (string, error) {
-    // newInfoMap := infoMap.(map[string]interface{})
-    // jsonOutput, _ := json.Marshal(newInfoMap)
+	newInfoMap := infoMap.(map[string]interface{})
+	jsonOutput, _ := json.Marshal(newInfoMap)
 
-    bencode := bencode.MustMarshal(infoMap)
+	fmt.Println(string(jsonOutput))
 
-    fmt.Println("The bencode value is: ", bencode)
+	var buffer bytes.Buffer
 
-    return "", nil
+	_, err := buffer.Write(jsonOutput)
+	if err != nil {
+		return "", err
+	}
+
+	err = bencode.Marshal(&buffer, infoMap)
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Println("The bencode value is: ", buffer.String())
+
+	return "", nil
 }
 
 func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) {
 	var annouceUrl string
 	var length int
 
-    result, err := decodeBencode(bencodedString)
-    if err != nil {
-        return nil, nil, err
-    }
+	result, err := decodeBencode(bencodedString)
 
-	jsonOutput, _ := json.Marshal(result) // jsonOutput is a []byte
+	jsonOutput, _ := json.Marshal(result) // no result here i.e null
 	var data map[string]interface{}
 
-	err = json.Unmarshal(jsonOutput, &data)
+	err = json.Unmarshal([]byte(jsonOutput), &data)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Couldn't unmarshal the JSON data")
 	}
@@ -63,16 +73,15 @@ func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) 
 		}
 	}
 
-    if info, ok := data["info"]; ok {
-        _, err := calculateInfoHash(info)
-        if err != nil {
-            return nil, nil, err
-        }
-    }
+	if info, ok := data["info"]; ok {
+		_, err := calculateInfoHash(info)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 
 	return annouceUrl, length, nil
 }
-
 
 func main() {
 	command := os.Args[1]
@@ -80,25 +89,25 @@ func main() {
 	if command == "decode" {
 		bencodedValue := os.Args[2]
 
-        decoded, err := decodeBencode(bencodedValue)
-        if err != nil {
-            log.Print("Couldn't decode the string")
-            os.Exit(1)
-        }
- 
-		jsonOutput, _ := json.Marshal(decoded)
-        fmt.Println(string(jsonOutput))
-	} else if command == "info" {
-        fileName := os.Args[2]
-
-        metaInfo, err := os.ReadFile(fileName)
-        if err != nil {
-            log.Fatal("Couldn't open file", fileName)
-            os.Exit(1)
-        }
-        
+		decoded, err := decodeBencode(bencodedValue)
 		if err != nil {
-			log.Print(err)
+			log.Print("Couldn't decode the string")
+			os.Exit(1)
+		}
+
+		jsonOutput, _ := json.Marshal(decoded)
+		fmt.Println(string(jsonOutput))
+	} else if command == "info" {
+		fileName := os.Args[2]
+
+		metaInfo, err := os.ReadFile(fileName)
+		if err != nil {
+			log.Fatal("Couldn't open file", fileName)
+			os.Exit(1)
+		}
+
+		if err != nil {
+			log.Print("Couldn't read from stdin")
 			os.Exit(1)
 		}
 
