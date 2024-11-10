@@ -53,20 +53,13 @@ func decodeBencode(bencodedString string) (*bencodeTorrent, error) {
 }
 
 func extractPieces(info bencodeInfo) ([][20]byte, error) {
-	hashlen := 20
+	hashLen := 20
 	buf := []byte(info.Pieces)
-	if len(buf)%hashlen != 0 {
-		err := fmt.Errorf("received malformed pieces of length: %d", len(buf))
-		return nil, err
+	numHashes := len(buf) / hashLen
+	hashes := make([][20]byte, numHashes)
+	for i := 0; i < numHashes; i++ {
+		copy(hashes[i][:], buf[i*hashLen:(i+1)*hashLen])
 	}
-
-	numhashes := len(buf)
-	hashes := make([][20]byte, numhashes)
-
-	for i := 0; i < numhashes; i++ {
-		copy(hashes[i][:], buf[i*hashlen:(i+1)*hashlen])
-	}
-
 	return hashes, nil
 }
 
@@ -128,6 +121,17 @@ func main() {
 		//fmt.Println("Info Hash:", infoHash)
 		//fmt.Println("Pieces Length:", info.PieceLength)
 		//fmt.Println()
+
+		piecesHash, err := extractPieces(*info)
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		for i := 0; i < len(piecesHash); i++ {
+			fmt.Printf("%s\n", hex.EncodeToString(piecesHash[i][:]))
+		}
+
 	} else {
 		fmt.Println("Unknown command: " + command)
 		os.Exit(1)
