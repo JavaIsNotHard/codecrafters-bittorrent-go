@@ -10,20 +10,33 @@ import (
 	"os"
 	"strings"
 
-	bencode "github.com/jackpal/bencode-go" // Available if you need it!
+	bencode "github.com/jackpal/bencode-go"
 )
 
 var _ = json.Marshal
 
-func decodeBencode(bencodedString string) (interface{}, error) {
+type bencodeInfo struct {
+	Pieces      string `bencode:"pieces"`
+	PieceLength int    `bencode:"piece length"`
+	Length      int    `bencode:"length"`
+	Name        string `bencode:"name"`
+}
+
+type bencodeTorrent struct {
+	Announce string      `bencode:"announce"`
+	Info     bencodeInfo `bencode:"info"`
+}
+
+func decodeBencode(bencodedString string) (*bencodeTorrent, error) {
 	reader := strings.NewReader(bencodedString)
 
-	result, err := bencode.Decode(reader)
+	bto := bencodeTorrent{}
+	err := bencode.Unmarshal(reader, &bto)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't decode the bencode string")
+		return nil, err
 	}
 
-	return result, nil
+	return &bto, nil
 }
 
 func calculateInfoHash(infoMap interface{}) (string, error) {
@@ -50,37 +63,13 @@ func calculateInfoHash(infoMap interface{}) (string, error) {
 }
 
 func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) {
-	var annouceUrl string
-	var length int
-
 	result, err := decodeBencode(bencodedString)
 
-	jsonOutput, _ := json.Marshal(result) // no result here i.e null
-	var data map[string]interface{}
-
-	err = json.Unmarshal([]byte(jsonOutput), &data)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Couldn't unmarshal the JSON data")
+		return nil, nil, err
 	}
 
-	annouceUrl = data["announce"].(string)
-
-	if meta, ok := data["info"].(map[string]interface{}); ok {
-		for key, value := range meta {
-			if key == "length" {
-				length = int(value.(float64))
-			}
-		}
-	}
-
-	if info, ok := data["info"]; ok {
-		_, err := calculateInfoHash(info)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	return annouceUrl, length, nil
+	return result.Announce, result.Info.Length, nil
 }
 
 func main() {
@@ -106,15 +95,10 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err != nil {
-			log.Print("Couldn't read from stdin")
-			os.Exit(1)
-		}
-
 		annonceUrl, length, err := extractTrackerURL(string(metaInfo))
 		if err != nil {
-			fmt.Println(err)
-			return
+			log.Print(err)
+			os.Exit(1)
 		}
 
 		fmt.Println("Tracker URL:", annonceUrl)
