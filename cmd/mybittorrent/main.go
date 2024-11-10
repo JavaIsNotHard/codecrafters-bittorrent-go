@@ -1,7 +1,8 @@
 package main
 
 import (
-	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 
 	//"crypto/sha1"
@@ -27,6 +28,18 @@ type bencodeTorrent struct {
 	Info     bencodeInfo `bencode:"info"`
 }
 
+func generateInfoHash(info *bencodeInfo) (interface{}, error) {
+	data, err := json.Marshal(info)
+
+	if err != nil {
+		return nil, err
+	}
+
+	hash := sha1.New()
+	hash.Write([]byte(data))
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
 func decodeBencode(bencodedString string) (*bencodeTorrent, error) {
 	reader := strings.NewReader(bencodedString)
 
@@ -39,37 +52,14 @@ func decodeBencode(bencodedString string) (*bencodeTorrent, error) {
 	return &bto, nil
 }
 
-func calculateInfoHash(infoMap interface{}) (string, error) {
-	newInfoMap := infoMap.(map[string]interface{})
-	jsonOutput, _ := json.Marshal(newInfoMap)
-
-	fmt.Println(string(jsonOutput))
-
-	var buffer bytes.Buffer
-
-	_, err := buffer.Write(jsonOutput)
-	if err != nil {
-		return "", err
-	}
-
-	err = bencode.Marshal(&buffer, infoMap)
-	if err != nil {
-		return "", err
-	}
-
-	fmt.Println("The bencode value is: ", buffer.String())
-
-	return "", nil
-}
-
-func extractTrackerURL(bencodedString string) (interface{}, interface{}, error) {
+func extractTrackerURL(bencodedString string) (interface{}, *bencodeInfo, error) {
 	result, err := decodeBencode(bencodedString)
 
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return result.Announce, result.Info.Length, nil
+	return result.Announce, &result.Info, nil
 }
 
 func main() {
@@ -95,14 +85,21 @@ func main() {
 			os.Exit(1)
 		}
 
-		annonceUrl, length, err := extractTrackerURL(string(metaInfo))
+		annonceUrl, info, err := extractTrackerURL(string(metaInfo))
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		infoHash, err := generateInfoHash(info)
 		if err != nil {
 			log.Print(err)
 			os.Exit(1)
 		}
 
 		fmt.Println("Tracker URL:", annonceUrl)
-		fmt.Println("Length:", length)
+		fmt.Println("Length:", info.Length)
+		fmt.Println("Info Hash:", infoHash)
 	} else {
 		fmt.Println("Unknown command: " + command)
 		os.Exit(1)
