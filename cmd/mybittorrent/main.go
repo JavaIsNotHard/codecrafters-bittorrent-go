@@ -193,6 +193,7 @@ func main() {
 		}
 
 		torrent, err := decodedMetaInfo.toTorrent()
+
 		if err != nil {
 			log.Print(err)
 			os.Exit(1)
