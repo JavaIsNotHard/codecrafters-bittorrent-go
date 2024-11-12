@@ -13,7 +13,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
@@ -140,14 +139,12 @@ func (torrentData *Torrent) createConnection(address string) error {
 	buffer.WriteString(protocolName)
 	buffer.Write(make([]byte, 8))
 	buffer.Write(torrentData.InfoHash[:])
-	fmt.Println(hex.EncodeToString(torrentData.InfoHash[:]))
+	// fmt.Println(hex.EncodeToString(torrentData.InfoHash[:]))
 	buffer.Write(torrentData.PeerID[:])
 
-	count, err := conn.Write(buffer.Bytes())
-	fmt.Println(count)
+	_, err = conn.Write(buffer.Bytes())
 
 	resp, err := ReadHandshakeFromPeer(conn)
-	fmt.Println(count)
 	if err != nil {
 		if err == os.ErrClosed {
 			fmt.Println("Connection closed by server.")
@@ -159,8 +156,36 @@ func (torrentData *Torrent) createConnection(address string) error {
 		fmt.Println("failed:", err)
 	}
 
-	fmt.Println(hex.EncodeToString(resp.InfoHash[:]))
+	fmt.Println(hex.EncodeToString(resp.PeerID[:]))
 	return nil
+}
+
+func returnTorrentFile(fileName string) (TorrentFile, error) {
+	torrentContent, err := os.ReadFile(fileName)
+	if err != nil {
+		log.Fatal("Couldn't open file", fileName)
+		os.Exit(1)
+	}
+
+	decodedMetaInfo, err := decodeBencode(string(torrentContent))
+	if err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+
+	torrent, err := decodedMetaInfo.toTorrent()
+	return torrent, err
+}
+
+func returnRequestPeer() ([]Peer, error) {
+	torrent, err := returnTorrentFile(os.Args[2])
+
+	peers, err := torrent.requestPeer(generatePeerID(), Port)
+	if err != nil {
+		return nil, err
+	}
+
+	return peers, nil
 }
 
 func main() {
@@ -182,21 +207,7 @@ func main() {
 
 		fmt.Println(string(jsonOutput))
 	} else if command == "info" {
-		fileName := os.Args[2]
-
-		torrentContent, err := os.ReadFile(fileName)
-		if err != nil {
-			log.Fatal("Couldn't open file", fileName)
-			os.Exit(1)
-		}
-
-		decodedMetaInfo, err := decodeBencode(string(torrentContent))
-		if err != nil {
-			log.Print(err)
-			os.Exit(1)
-		}
-
-		torrent, err := decodedMetaInfo.toTorrent()
+		torrent, err := returnTorrentFile(os.Args[2])
 
 		if err != nil {
 			log.Print(err)
@@ -210,36 +221,32 @@ func main() {
 		fmt.Println("Pieces Hashes:")
 		torrent.printHashList()
 
+	} else if command == "handshake" {
+		peerAddress := os.Args[3]
+
+		torrent, err := returnTorrentFile(os.Args[2])
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		peers, err := returnRequestPeer()
+
+		torrentdata := Torrent{
+			Peers:       peers,
+			PeerID:      generatePeerID(),
+			InfoHash:    torrent.InfoHash,
+			PiecesHash:  torrent.PiecesHashes,
+			PieceLength: torrent.PieceLength,
+			Length:      torrent.Length,
+			Name:        torrent.Name,
+		}
+
+		torrentdata.createConnection(peerAddress)
+
 	} else if command == "peers" {
-		fileName := os.Args[2]
+		peers, err := returnRequestPeer()
 
-		torrentContent, err := os.ReadFile(fileName)
-		if err != nil {
-			log.Fatal("Couldn't open file", fileName)
-			os.Exit(1)
-		}
-
-		decodedMetaInfo, err := decodeBencode(string(torrentContent))
-		if err != nil {
-			log.Print(err)
-			os.Exit(1)
-		}
-
-		torrent, err := decodedMetaInfo.toTorrent()
-		if err != nil {
-			log.Print(err)
-			os.Exit(1)
-		}
-
-		var peerId [20]byte
-
-		_, err = rand.Read(peerId[:])
-		if err != nil {
-			log.Print(err)
-			os.Exit(1)
-		}
-
-		peers, err := torrent.requestPeer(peerId, Port)
 		if err != nil {
 			log.Print(err)
 			os.Exit(1)
@@ -248,16 +255,6 @@ func main() {
 		for _, value := range peers {
 			fmt.Println(value)
 		}
-
-		// torrentdata := Torrent{
-		// 	Peers:       peers,
-		// 	PeerID:      peerId,
-		// 	InfoHash:    torrent.InfoHash,
-		// 	PiecesHash:  torrent.PiecesHashes,
-		// 	PieceLength: torrent.PieceLength,
-		// 	Length:      torrent.Length,
-		// 	Name:        torrent.Name,
-		// }
 
 		// fmt.Println(peers[0].String())
 		// fmt.Println(hex.EncodeToString(torrentdata.PeerID[:]))
