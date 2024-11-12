@@ -135,30 +135,17 @@ func (torrentData *Torrent) createConnection(address string) error {
 	}
 	defer conn.Close()
 
-	buf := make([]byte, len("BitTorrent protocol")+49)
-	buf[0] = byte(len("BitTorrent protocol"))
-	curr := 1
-	curr = copy(buf[curr:], "BitTorrent protocol")
-	curr = copy(buf[curr:], make([]byte, 8))
-	curr = copy(buf[curr:], torrentData.InfoHash[:])
-	curr = copy(buf[curr:], torrentData.PeerID[:])
-
 	var buffer bytes.Buffer
-	// Write protocol name length and name
 	buffer.WriteByte(byte(len(protocolName)))
 	buffer.WriteString(protocolName)
-	// Write 8 reserved bytes (all set to zero)
 	buffer.Write(make([]byte, 8))
-	// Write the info hash
 	buffer.Write(torrentData.InfoHash[:])
-	// Write the peer I
 	fmt.Println(hex.EncodeToString(torrentData.InfoHash[:]))
 	buffer.Write(torrentData.PeerID[:])
 
 	count, err := conn.Write(buffer.Bytes())
 	fmt.Println(count)
 
-	// response := make([]byte, 68) // Expecting a 68-byte handshake response
 	resp, err := ReadHandshakeFromPeer(conn)
 	fmt.Println(count)
 	if err != nil {
@@ -214,8 +201,8 @@ func main() {
 		fmt.Println("Tracker URL:", torrent.Announce)
 		fmt.Println("Length", torrent.Length)
 		fmt.Println("Info Hash:", hex.EncodeToString(torrent.InfoHash[:]))
-		fmt.Println("Piece Length:", torrent.PieceLength)
-		torrent.printHashList()
+		// fmt.Println("Piece Length:", torrent.PieceLength)
+		// torrent.printHashList()
 
 	} else if command == "peers" {
 		fileName := os.Args[2]
