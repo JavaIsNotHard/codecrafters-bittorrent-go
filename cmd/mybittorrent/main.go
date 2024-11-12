@@ -119,8 +119,8 @@ func (torrent *TorrentFile) printHashList() {
 	}
 }
 
-func createConnection(address string, wg *sync.WaitGroup) error {
-	defer wg.Done()
+func (torrentData *Torrent) createConnection(address string, wg *sync.WaitGroup) error {
+	// defer wg.Done()
 
 	timeout := 5 * time.Second
 
@@ -131,6 +131,22 @@ func createConnection(address string, wg *sync.WaitGroup) error {
 	defer conn.Close()
 
 	fmt.Println("successful connection to:", conn.RemoteAddr())
+
+	handshakevar := HandShakeStruct{}
+
+	handshakeprotocolstruct := handshakevar.NewHandshake(torrentData.InfoHash, torrentData.PeerID)
+
+	_, err = conn.Write(handshakeprotocolstruct.Serialize())
+	if err != nil {
+		return err
+	}
+
+	res, err := ReadHandshakeFromPeer(conn)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(res.PeerID)
 
 	return nil
 }
@@ -211,14 +227,37 @@ func main() {
 			os.Exit(1)
 		}
 
+		torrentdata := Torrent{
+			Peers:       peers,
+			PeerID:      peerId,
+			InfoHash:    torrent.InfoHash,
+			PiecesHash:  torrent.PiecesHashes,
+			PieceLength: torrent.PieceLength,
+			Length:      torrent.Length,
+			Name:        torrent.Name,
+		}
+
 		var wg sync.WaitGroup
+
+		errChan := make(chan error, len(peers))
 
 		for _, address := range peers {
 			wg.Add(1)
-			go createConnection(address.String(), &wg)
+			go func() {
+				if err := torrentdata.createConnection(address.String(), &wg); err != nil {
+					wg.Done()
+					errChan <- err
+				}
+			}()
 		}
 
 		wg.Wait()
+
+		for err = range errChan {
+			if err != nil {
+				log.Print(err)
+			}
+		}
 
 		fmt.Println("All peers connected")
 
