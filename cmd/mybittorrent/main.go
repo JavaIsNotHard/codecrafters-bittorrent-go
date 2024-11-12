@@ -169,7 +169,7 @@ func main() {
 	if command == "decode" {
 		bencodedValue := os.Args[2]
 
-		decoded, err := decodeBencode(bencodedValue)
+		decoded, err := bencode.Decode(strings.NewReader(bencodedValue))
 		if err != nil {
 			log.Print("Couldn't decode the string")
 			os.Exit(1)
