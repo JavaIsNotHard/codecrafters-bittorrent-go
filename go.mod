@@ -8,9 +8,9 @@
 
 module github.com/codecrafters-io/bittorrent-starter-go
 
-go 1.23
+go 1.22
 
-toolchain go1.23.2
+toolchain go1.22.9
 
 require (
 	github.com/IncSW/go-bencode v0.2.2 // indirect
