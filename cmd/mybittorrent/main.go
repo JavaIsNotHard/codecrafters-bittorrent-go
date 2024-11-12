@@ -175,7 +175,11 @@ func main() {
 			os.Exit(1)
 		}
 
-		jsonOutput, _ := json.Marshal(decoded)
+		jsonOutput, err := json.Marshal(decoded)
+		if err != nil {
+			panic(err)
+		}
+
 		fmt.Println(string(jsonOutput))
 	} else if command == "info" {
 		fileName := os.Args[2]
