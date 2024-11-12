@@ -145,6 +145,7 @@ func (torrentData *Torrent) createConnection(address string) error {
 	_, err = conn.Write(buffer.Bytes())
 
 	resp, err := ReadHandshakeFromPeer(conn)
+
 	if err != nil {
 		if err == os.ErrClosed {
 			fmt.Println("Connection closed by server.")
