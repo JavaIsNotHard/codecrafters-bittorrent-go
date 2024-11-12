@@ -206,8 +206,9 @@ func main() {
 		fmt.Println("Tracker URL:", torrent.Announce)
 		fmt.Println("Length:", torrent.Length)
 		fmt.Println("Info Hash:", hex.EncodeToString(torrent.InfoHash[:]))
-		// fmt.Println("Piece Length:", torrent.PieceLength)
-		// torrent.printHashList()
+		fmt.Println("Piece Length:", torrent.PieceLength)
+		fmt.Println("Pieces Hashes:")
+		torrent.printHashList()
 
 	} else if command == "peers" {
 		fileName := os.Args[2]
