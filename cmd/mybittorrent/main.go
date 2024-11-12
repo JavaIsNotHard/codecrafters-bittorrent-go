@@ -245,21 +245,25 @@ func main() {
 			os.Exit(1)
 		}
 
-		torrentdata := Torrent{
-			Peers:       peers,
-			PeerID:      peerId,
-			InfoHash:    torrent.InfoHash,
-			PiecesHash:  torrent.PiecesHashes,
-			PieceLength: torrent.PieceLength,
-			Length:      torrent.Length,
-			Name:        torrent.Name,
+		for _, value := range peers {
+			fmt.Println(value)
 		}
 
-		fmt.Println(peers[0].String())
-		fmt.Println(hex.EncodeToString(torrentdata.PeerID[:]))
-		torrentdata.createConnection(peers[0].String())
+		// torrentdata := Torrent{
+		// 	Peers:       peers,
+		// 	PeerID:      peerId,
+		// 	InfoHash:    torrent.InfoHash,
+		// 	PiecesHash:  torrent.PiecesHashes,
+		// 	PieceLength: torrent.PieceLength,
+		// 	Length:      torrent.Length,
+		// 	Name:        torrent.Name,
+		// }
 
-		fmt.Println("All peers connected")
+		// fmt.Println(peers[0].String())
+		// fmt.Println(hex.EncodeToString(torrentdata.PeerID[:]))
+		// torrentdata.createConnection(peers[0].String())
+
+		// fmt.Println("All peers connected")
 
 	} else {
 		fmt.Println("Unknown command: " + command)
