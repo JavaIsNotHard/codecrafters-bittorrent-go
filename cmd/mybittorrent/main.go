@@ -200,7 +200,7 @@ func main() {
 		}
 
 		fmt.Println("Tracker URL:", torrent.Announce)
-		fmt.Println("Length", torrent.Length)
+		fmt.Println("Length:", torrent.Length)
 		fmt.Println("Info Hash:", hex.EncodeToString(torrent.InfoHash[:]))
 		// fmt.Println("Piece Length:", torrent.PieceLength)
 		// torrent.printHashList()
