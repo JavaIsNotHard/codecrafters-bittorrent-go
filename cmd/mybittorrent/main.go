@@ -18,7 +18,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net"
-	"sync"
 	"time"
 
 	//"crypto/sha1"
@@ -119,9 +118,15 @@ func (torrent *TorrentFile) printHashList() {
 	}
 }
 
-func (torrentData *Torrent) createConnection(address string, wg *sync.WaitGroup) error {
-	// defer wg.Done()
+func generatePeerID() [20]byte {
+	peerID := [20]byte{}
+	copy(peerID[:], "-GO0001-"+"123456789012")
+	return peerID
+}
 
+const protocolName = "BitTorrent protocol"
+
+func (torrentData *Torrent) createConnection(address string) error {
 	timeout := 5 * time.Second
 
 	conn, err := net.DialTimeout("tcp", address, timeout)
@@ -130,24 +135,44 @@ func (torrentData *Torrent) createConnection(address string, wg *sync.WaitGroup)
 	}
 	defer conn.Close()
 
-	fmt.Println("successful connection to:", conn.RemoteAddr())
+	buf := make([]byte, len("BitTorrent protocol")+49)
+	buf[0] = byte(len("BitTorrent protocol"))
+	curr := 1
+	curr = copy(buf[curr:], "BitTorrent protocol")
+	curr = copy(buf[curr:], make([]byte, 8))
+	curr = copy(buf[curr:], torrentData.InfoHash[:])
+	curr = copy(buf[curr:], torrentData.PeerID[:])
 
-	handshakevar := HandShakeStruct{}
+	var buffer bytes.Buffer
+	// Write protocol name length and name
+	buffer.WriteByte(byte(len(protocolName)))
+	buffer.WriteString(protocolName)
+	// Write 8 reserved bytes (all set to zero)
+	buffer.Write(make([]byte, 8))
+	// Write the info hash
+	buffer.Write(torrentData.InfoHash[:])
+	// Write the peer I
+	fmt.Println(hex.EncodeToString(torrentData.InfoHash[:]))
+	buffer.Write(torrentData.PeerID[:])
 
-	handshakeprotocolstruct := handshakevar.NewHandshake(torrentData.InfoHash, torrentData.PeerID)
+	count, err := conn.Write(buffer.Bytes())
+	fmt.Println(count)
 
-	_, err = conn.Write(handshakeprotocolstruct.Serialize())
+	// response := make([]byte, 68) // Expecting a 68-byte handshake response
+	resp, err := ReadHandshakeFromPeer(conn)
+	fmt.Println(count)
 	if err != nil {
-		return err
+		if err == os.ErrClosed {
+			fmt.Println("Connection closed by server.")
+		}
+		if err.Error() == "EOF" {
+			fmt.Println("Reached end of file.")
+		}
+		fmt.Println("Error reading from connection:", err)
+		fmt.Println("failed:", err)
 	}
 
-	res, err := ReadHandshakeFromPeer(conn)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(res.PeerID)
-
+	fmt.Println(hex.EncodeToString(resp.InfoHash[:]))
 	return nil
 }
 
@@ -237,27 +262,9 @@ func main() {
 			Name:        torrent.Name,
 		}
 
-		var wg sync.WaitGroup
-
-		errChan := make(chan error, len(peers))
-
-		for _, address := range peers {
-			wg.Add(1)
-			go func() {
-				if err := torrentdata.createConnection(address.String(), &wg); err != nil {
-					wg.Done()
-					errChan <- err
-				}
-			}()
-		}
-
-		wg.Wait()
-
-		for err = range errChan {
-			if err != nil {
-				log.Print(err)
-			}
-		}
+		fmt.Println(peers[0].String())
+		fmt.Println(hex.EncodeToString(torrentdata.PeerID[:]))
+		torrentdata.createConnection(peers[0].String())
 
 		fmt.Println("All peers connected")
 

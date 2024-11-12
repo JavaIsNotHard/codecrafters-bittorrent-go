@@ -20,7 +20,6 @@ func (h *HandShakeStruct) NewHandshake(infoHash [20]byte, peerId [20]byte) *Hand
 }
 
 func (h *HandShakeStruct) Serialize() []byte {
-	// buffer is of size 68 because buf[0] = 19, then length of the protocolString = 1, so 19 + 1 = 20, the size of infohash = 20 so 20 + 20 = 40 + 8 bytes reserved as 0 and remaining is 20 bytes of peerID
 	buf := make([]byte, len(h.ProtocolString)+49)
 	buf[0] = byte(len(h.ProtocolString))
 	curr := 1

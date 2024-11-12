@@ -35,3 +35,23 @@
   <configuration>
   </configuration>
   <tdelta>0</tdelta>
+  <configuration>
+  </configuration>
+  <summary />
+  <open_fds_at_end>0</open_fds_at_end>
+  <max_open_flows>0</max_open_flows>
+  <total_flows>0</total_flows>
+  <flow_map_size>0</flow_map_size>
+  <total_packets>0</total_packets>
+  <rusage>
+    <utime>0.167848</utime>
+    <stime>2.076771</stime>
+    <maxrss>3162112</maxrss>
+    <minflt>382</minflt>
+    <majflt>2</majflt>
+    <nswap>0</nswap>
+    <inblock>0</inblock>
+    <oublock>0</oublock>
+    <clocktime>1211.491074</clocktime>
+  </rusage>
+</dfxml>
