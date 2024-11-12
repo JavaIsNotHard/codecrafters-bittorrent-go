@@ -157,7 +157,7 @@ func (torrentData *Torrent) createConnection(address string) error {
 		fmt.Println("failed:", err)
 	}
 
-	fmt.Println(hex.EncodeToString(resp.PeerID[:]))
+	fmt.Println("Peer ID:", hex.EncodeToString(resp.PeerID[:]))
 	return nil
 }
 
