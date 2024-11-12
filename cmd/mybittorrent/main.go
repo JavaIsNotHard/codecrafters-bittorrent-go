@@ -1,11 +1,25 @@
 package main
 
+// perform handshake will all the peers using goroutines
+// chocked -> no data will be sent until unchoking happens
+//
+// whenever one side is interested and the other side is not chocked
+// downloaders should keep several pieces request queued up at once in order to get good performance (known as pipelining)
+// request which cannot be written out to TCP buffer should immediately be queued in memory rather than in application-level network buffer
+// the handshake starts with character nineteen (decimal) followed by the string 'BitTorrent Protocol'
+// all later integers sent in the protocol are encoded as four bytes big-endian
+// after the fixed header comes eight reserved bytes whose value are all zeros
+// next is the sha1 hash of the info dict from the bencoded torrent file
+
 import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"net"
+	"sync"
+	"time"
 
 	//"crypto/sha1"
 	"fmt"
@@ -105,6 +119,22 @@ func (torrent *TorrentFile) printHashList() {
 	}
 }
 
+func createConnection(address string, wg *sync.WaitGroup) error {
+	defer wg.Done()
+
+	timeout := 5 * time.Second
+
+	conn, err := net.DialTimeout("tcp", address, timeout)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	fmt.Println("successful connection to:", conn.RemoteAddr())
+
+	return nil
+}
+
 func main() {
 	command := os.Args[1]
 
@@ -180,7 +210,17 @@ func main() {
 			log.Print(err)
 			os.Exit(1)
 		}
-		fmt.Println(peers)
+
+		var wg sync.WaitGroup
+
+		for _, address := range peers {
+			wg.Add(1)
+			go createConnection(address.String(), &wg)
+		}
+
+		wg.Wait()
+
+		fmt.Println("All peers connected")
 
 	} else {
 		fmt.Println("Unknown command: " + command)
