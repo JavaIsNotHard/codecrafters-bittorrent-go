@@ -11,7 +11,7 @@ type HandShakeStruct struct {
 	PeerID         [20]byte
 }
 
-func (h *HandShakeStruct) NewHandshake(infoHash [20]byte, peerId [20]byte) *HandShakeStruct {
+func NewHandshake(infoHash [20]byte, peerId [20]byte) *HandShakeStruct {
 	return &HandShakeStruct{
 		ProtocolString: "BitTorrent protocol",
 		InfoHash:       infoHash,

@@ -125,12 +125,12 @@ func generatePeerID() [20]byte {
 
 const protocolName = "BitTorrent protocol"
 
-func (torrentData *Torrent) createConnection(address string) error {
+func (torrentData *Torrent) createConnectionAndReturnPeerId(address string) (string, error) {
 	timeout := 5 * time.Second
 
 	conn, err := net.DialTimeout("tcp", address, timeout)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer conn.Close()
 
@@ -157,8 +157,7 @@ func (torrentData *Torrent) createConnection(address string) error {
 		fmt.Println("failed:", err)
 	}
 
-	fmt.Println("Peer ID:", hex.EncodeToString(resp.PeerID[:]))
-	return nil
+	return hex.EncodeToString(resp.PeerID[:]), nil
 }
 
 func returnTorrentFile(fileName string) (TorrentFile, error) {
@@ -243,7 +242,13 @@ func main() {
 			Name:        torrent.Name,
 		}
 
-		torrentdata.createConnection(peerAddress)
+		peerid, err := torrentdata.createConnectionAndReturnPeerId(peerAddress)
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Peer ID:", peerid)
 
 	} else if command == "peers" {
 		peers, err := returnRequestPeer()
@@ -262,6 +267,41 @@ func main() {
 		// torrentdata.createConnection(peers[0].String())
 
 		// fmt.Println("All peers connected")
+
+	} else if command == "download_piece" {
+
+		peerAddress := os.Args[3]
+
+		torrent, err := returnTorrentFile(os.Args[2])
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		peers, err := returnRequestPeer()
+
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		torrentdata := Torrent{
+			Peers:       peers,
+			PeerID:      generatePeerID(),
+			InfoHash:    torrent.InfoHash,
+			PiecesHash:  torrent.PiecesHashes,
+			PieceLength: torrent.PieceLength,
+			Length:      torrent.Length,
+			Name:        torrent.Name,
+		}
+
+		_, err = torrentdata.createConnectionAndReturnPeerId(peerAddress)
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		// handshake complete with the peer
 
 	} else {
 		fmt.Println("Unknown command: " + command)
