@@ -125,12 +125,12 @@ func generatePeerID() [20]byte {
 
 const protocolName = "BitTorrent protocol"
 
-func (torrentData *Torrent) createConnectionAndReturnPeerId(address string) (string, error) {
+func (torrentData *Torrent) createConnectionAndReturnPeerId(address string) (net.Conn, error) {
 	timeout := 5 * time.Second
 
 	conn, err := net.DialTimeout("tcp", address, timeout)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer conn.Close()
 
@@ -139,12 +139,13 @@ func (torrentData *Torrent) createConnectionAndReturnPeerId(address string) (str
 	buffer.WriteString(protocolName)
 	buffer.Write(make([]byte, 8))
 	buffer.Write(torrentData.InfoHash[:])
-	// fmt.Println(hex.EncodeToString(torrentData.InfoHash[:]))
 	buffer.Write(torrentData.PeerID[:])
 
 	_, err = conn.Write(buffer.Bytes())
 
-	resp, err := ReadHandshakeFromPeer(conn)
+	_, err = ReadHandshakeFromPeer(conn)
+
+	fmt.Println("Handshake successful")
 
 	if err != nil {
 		if err == os.ErrClosed {
@@ -157,7 +158,28 @@ func (torrentData *Torrent) createConnectionAndReturnPeerId(address string) (str
 		fmt.Println("failed:", err)
 	}
 
-	return hex.EncodeToString(resp.PeerID[:]), nil
+	_, err = recvBitField(conn)
+
+	return conn, nil
+}
+
+func recvBitField(conn net.Conn) (*Message, error) {
+	msg, err := ReadMessageFromConn(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	if msg == nil {
+		return nil, fmt.Errorf("Didn't recieve any message from peer: %s", conn.RemoteAddr())
+	}
+
+	if msg.ID != bitfieldmsg {
+		return nil, fmt.Errorf("Didn't receive bitfield message from peer: %s", conn.RemoteAddr())
+	}
+
+	fmt.Println(msg.ID)
+
+	return msg, nil
 }
 
 func returnTorrentFile(fileName string) (TorrentFile, error) {
@@ -262,16 +284,9 @@ func main() {
 			fmt.Println(value)
 		}
 
-		// fmt.Println(peers[0].String())
-		// fmt.Println(hex.EncodeToString(torrentdata.PeerID[:]))
-		// torrentdata.createConnection(peers[0].String())
-
-		// fmt.Println("All peers connected")
-
 	} else if command == "download_piece" {
 
 		peerAddress := os.Args[3]
-
 		torrent, err := returnTorrentFile(os.Args[2])
 		if err != nil {
 			log.Print(err)
@@ -300,6 +315,8 @@ func main() {
 			log.Print(err)
 			os.Exit(1)
 		}
+
+		// fmt.Println(msg.ID)
 
 		// handshake complete with the peer
 
