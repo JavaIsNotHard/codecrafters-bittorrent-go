@@ -12,6 +12,14 @@ type Peer struct {
 	Port uint16
 }
 
+type PeerMessage struct {
+	LengthPrefix uint32
+	msgID        messageID
+	index        uint32
+	begin        uint32
+	length       uint32
+}
+
 // Unmarshal parses peer IP addresses and ports from a buffer
 func Unmarshal(peersBin []byte) ([]Peer, error) {
 	const peerSize = 6 // 4 for IP, 2 for port

@@ -14,9 +14,13 @@ package main
 import (
 	"bytes"
 	"crypto/sha1"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"io"
+	"math"
 	"net"
+	"strconv"
 	"time"
 
 	//"crypto/sha1"
@@ -136,12 +140,12 @@ func generatePeerID() [20]byte {
 
 const protocolName = "BitTorrent protocol"
 
-func (torrentData *Torrent) createConnectionAndReturnPeerId(address string) (net.Conn, error) {
+func (torrentData *Torrent) createConnectionAndReturnPeerId(address string, index uint32) (net.Conn, error, []byte) {
 	timeout := 5 * time.Second
 
 	conn, err := net.DialTimeout("tcp", address, timeout)
 	if err != nil {
-		return nil, err
+		return nil, err, nil
 	}
 	defer conn.Close()
 
@@ -171,9 +175,76 @@ func (torrentData *Torrent) createConnectionAndReturnPeerId(address string) (net
 
 	_, err = recvBitField(conn)
 
-	return conn, nil
+	err = sendInterestedMessage(conn)
+	if err != nil {
+		return nil, err, nil
+	}
+
+	msg, err := ReadMessageFromConn(conn)
+	if err != nil {
+		return nil, err, nil
+	}
+
+	fmt.Println("Unchoked Message:", msg.ID)
+
+	pieceSize := torrentData.PieceLength
+	_ = int(math.Ceil(float64(torrentData.Length) / float64(pieceSize)))
+
+	blockSize := 16 * 1024
+	blockCount := int(math.Ceil(float64(pieceSize) / float64(blockSize)))
+
+	fmt.Println("Block Count:", blockCount)
+	var data []byte
+
+	for i := 0; i < blockCount; i++ {
+		peerMessage := PeerMessage{
+			LengthPrefix: 13,
+			msgID:        6,
+			index:        index,
+			begin:        uint32(i * blockSize),
+			length:       uint32(blockSize),
+		}
+
+		var buffer bytes.Buffer
+		binary.Write(&buffer, binary.BigEndian, peerMessage)
+
+		_, err = conn.Write(buffer.Bytes())
+		if err != nil {
+			return conn, err, nil
+		}
+
+		fmt.Println("Request message sent")
+
+		resultBuffer := make([]byte, 4)
+		_, err := conn.Read(resultBuffer)
+		if err != nil {
+			return nil, err, nil
+		}
+
+		peerMessage = PeerMessage{}
+		peerMessage.LengthPrefix = binary.BigEndian.Uint32(resultBuffer)
+		payloadBuf := make([]byte, peerMessage.LengthPrefix)
+		_, err = io.ReadFull(conn, payloadBuf)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err, nil
+		}
+
+		peerMessage.msgID = messageID(payloadBuf[0])
+		fmt.Printf("Received message: %v\n", peerMessage)
+		data = append(data, payloadBuf[9:]...)
+
+		fmt.Println(peerMessage.index)
+	}
+
+	return conn, nil, data
 }
 
+func SendUnchoke(conn net.Conn) error {
+	msg := Message{ID: unchokedmsg}
+	_, err := conn.Write(msg.SerializeMessage())
+	return err
+}
 func sendInterestedMessage(conn net.Conn) error {
 	msg := Message{ID: interestedmsg}
 	_, err := conn.Write(msg.SerializeMessage())
@@ -286,7 +357,13 @@ func main() {
 			Name:        torrent.Name,
 		}
 
-		peerid, err := torrentdata.createConnectionAndReturnPeerId(peerAddress)
+		index, err := strconv.Atoi(os.Args[4])
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		peerid, err, _ := torrentdata.createConnectionAndReturnPeerId(peerAddress, uint32(index))
 		if err != nil {
 			log.Print(err)
 			os.Exit(1)
@@ -307,8 +384,8 @@ func main() {
 		}
 
 	} else if command == "download_piece" {
-
 		peerAddress := os.Args[3]
+
 		torrent, err := returnTorrentFile(os.Args[2])
 		if err != nil {
 			log.Print(err)
@@ -332,11 +409,32 @@ func main() {
 			Name:        torrent.Name,
 		}
 
-		_, err = torrentdata.createConnectionAndReturnPeerId(peerAddress)
+		index, err := strconv.Atoi(os.Args[4])
 		if err != nil {
 			log.Print(err)
 			os.Exit(1)
 		}
+
+		_, err, data := torrentdata.createConnectionAndReturnPeerId(peerAddress, uint32(index))
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		file, err := os.Create("output")
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+		defer file.Close()
+
+		count, err := file.Write(data)
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Output data count:", count)
 
 		// fmt.Println(msg.ID)
 
