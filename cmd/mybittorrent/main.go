@@ -53,6 +53,17 @@ type bencodeTorrent struct {
 	Info     bencodeInfo `bencode:"info"`
 }
 
+type PayloadStruct struct {
+	Index  uint32
+	Begin  uint32
+	Length uint32
+}
+
+type MessageSendPayload struct {
+	ID      messageID
+	Payload PayloadStruct
+}
+
 func (i *bencodeInfo) generateInfoHash() ([20]byte, error) {
 	var buf bytes.Buffer
 	err := bencode.Marshal(&buf, *i)
@@ -163,6 +174,16 @@ func (torrentData *Torrent) createConnectionAndReturnPeerId(address string) (net
 	return conn, nil
 }
 
+func sendInterestedMessage(conn net.Conn) error {
+	msg := Message{ID: interestedmsg}
+	_, err := conn.Write(msg.SerializeMessage())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func recvBitField(conn net.Conn) (*Message, error) {
 	msg, err := ReadMessageFromConn(conn)
 	if err != nil {
@@ -178,6 +199,7 @@ func recvBitField(conn net.Conn) (*Message, error) {
 	}
 
 	fmt.Println(msg.ID)
+	fmt.Println(Bitfield(msg.Payload).HasPiece(0))
 
 	return msg, nil
 }
